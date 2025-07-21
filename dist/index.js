@@ -38,6 +38,9 @@ io.on("connection", (socket) => {
         //Send or broadcast the msg to all connected clients
         io.emit("server-msg", msg);
     });
+    socket.on("checkbox-update", (data) => {
+        io.emit("checkbox-update", data);
+    });
 });
 const PORT = (_a = process.env.PORT) !== null && _a !== void 0 ? _a : 8080;
 // Set up the redis

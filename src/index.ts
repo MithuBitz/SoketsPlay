@@ -26,7 +26,11 @@ io.on("connection", (socket) => {
     console.log(msg);
     //Send or broadcast the msg to all connected clients
     io.emit("server-msg", msg);
-  })
+  });
+
+  socket.on("checkbox-update", (data) => {
+    io.emit("checkbox-update", data);
+  });
 });
 
 const PORT = process.env.PORT ?? 8080;
