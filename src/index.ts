@@ -7,6 +7,9 @@ import { Server } from "socket.io";
 //Express Server
 const app = express();
 
+//State to hold the checkbox value
+const state = new Array(50).fill(false);
+
 //Http Server
 const httpServer = http.createServer(app);
 
@@ -29,6 +32,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("checkbox-update", (data) => {
+    // Fill the state
+    state[data.index] = data.value;
     io.emit("checkbox-update", data);
   });
 });
@@ -60,6 +65,11 @@ app.use(async function (req, res, next) {
 
   redis.incr(key); // Increment by 1
   next();
+});
+
+//
+app.get("/state", (req, res) => {
+  return res.json({ state });
 });
 
 app.get("/", (req, res) => {

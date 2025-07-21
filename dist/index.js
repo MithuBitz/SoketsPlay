@@ -20,6 +20,8 @@ const ioredis_1 = __importDefault(require("ioredis"));
 const socket_io_1 = require("socket.io");
 //Express Server
 const app = (0, express_1.default)();
+//State to hold the checkbox value
+const state = new Array(50).fill(false);
 //Http Server
 const httpServer = http_1.default.createServer(app);
 //Socket Server
@@ -39,6 +41,8 @@ io.on("connection", (socket) => {
         io.emit("server-msg", msg);
     });
     socket.on("checkbox-update", (data) => {
+        // Fill the state
+        state[data.index] = data.value;
         io.emit("checkbox-update", data);
     });
 });
@@ -65,6 +69,10 @@ app.use(function (req, res, next) {
         redis.incr(key); // Increment by 1
         next();
     });
+});
+//
+app.get("/state", (req, res) => {
+    return res.json({ state });
 });
 app.get("/", (req, res) => {
     return res.json({ status: "success" });

@@ -17,6 +17,23 @@
 
       const checkboxContainer = document.getElementById("checkbox-container");
 
+      async function stateUpdate() {
+        const response = await fetch("/state", {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await response.json();
+        console.log(data);
+        if (data.state) {
+          data.state.forEach((e, index) => {
+            const element = document.getElementById(`index-${index}`);
+            element.checked = e;
+          });
+        }
+      }
+
       checkboxes.forEach((checkbox, index) => {
         const input = document.createElement("input");
         input.setAttribute("type", "checkbox");
@@ -34,11 +51,7 @@
       const socket = io();
 
       socket.on("checkbox-update", ({ index, value }) => {
-        const e = document.getElementById(`index-${index}`);
-
-        if (e) {
-          e.checked = value;
-        }
+        stateUpdate();
       });
 
       socket.on("server-msg", (msg) => {
@@ -48,13 +61,7 @@
         messagesContainer.appendChild(li);
       });
 
-      const messageInput = document.getElementById("message-input");
-      const sendBtn = document.getElementById("send-button");
-
-      sendBtn.addEventListener("click", () => {
-        const msg = messageInput.value;
-        socket.emit("message", msg);
-      });
+      stateUpdate();
     </script>
   </body>
 </html>
