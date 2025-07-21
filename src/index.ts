@@ -2,15 +2,39 @@ import express from "express";
 import axios from "axios";
 import http from "http";
 import Redis from "ioredis";
+import { Server } from "socket.io";
 
+//Express Server
 const app = express();
 
+//Http Server
 const httpServer = http.createServer(app);
+
+//Socket Server
+const io = new Server();
+io.attach(httpServer);
+
+//Sockets handler
+// .on handler
+io.on("connection", (socket) => {
+  console.log("Socket connected ", socket.id);
+  // setInterval(() => {
+  //   socket.emit("Hello from the sokcet server");
+  //   socket.emit("How are YOU?");
+  // }, 2000);
+  socket.on("message", (msg) => {
+    console.log(msg);
+    //Send or broadcast the msg to all connected clients
+    io.emit("server-msg", msg);
+  })
+});
 
 const PORT = process.env.PORT ?? 8080;
 
 // Set up the redis
 const redis = new Redis({ host: "localhost", port: Number(6379) });
+
+app.use(express.static("./public"));
 
 // Set a middleware which act as a rate limiter with help of redis(valkey)
 app.use(async function (req, res, next) {
@@ -69,10 +93,6 @@ app.get("/books/total", async (req, res) => {
   console.log("Cached MISS");
   return res.json({ totalPageCount });
 });
-
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

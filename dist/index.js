@@ -17,11 +17,32 @@ const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
 const http_1 = __importDefault(require("http"));
 const ioredis_1 = __importDefault(require("ioredis"));
+const socket_io_1 = require("socket.io");
+//Express Server
 const app = (0, express_1.default)();
+//Http Server
 const httpServer = http_1.default.createServer(app);
+//Socket Server
+const io = new socket_io_1.Server();
+io.attach(httpServer);
+//Sockets handler
+// .on handler
+io.on("connection", (socket) => {
+    console.log("Socket connected ", socket.id);
+    // setInterval(() => {
+    //   socket.emit("Hello from the sokcet server");
+    //   socket.emit("How are YOU?");
+    // }, 2000);
+    socket.on("message", (msg) => {
+        console.log(msg);
+        //Send or broadcast the msg to all connected clients
+        io.emit("server-msg", msg);
+    });
+});
 const PORT = (_a = process.env.PORT) !== null && _a !== void 0 ? _a : 8080;
 // Set up the redis
 const redis = new ioredis_1.default({ host: "localhost", port: Number(6379) });
+app.use(express_1.default.static("./public"));
 // Set a middleware which act as a rate limiter with help of redis(valkey)
 app.use(function (req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -64,9 +85,6 @@ app.get("/books/total", (req, res) => __awaiter(void 0, void 0, void 0, function
     console.log("Cached MISS");
     return res.json({ totalPageCount });
 }));
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });
 httpServer.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
