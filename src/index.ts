@@ -8,7 +8,16 @@ import { Server } from "socket.io";
 const app = express();
 
 //State to hold the checkbox value
-const state = new Array(50).fill(false);
+// const state = new Array(50).fill(false);
+
+// Create a redis instance for get and set
+const redis = new Redis({ host: "localhost", port: Number(6379) });
+
+// Publisher redis server for implement scaling in Socket
+const publisher = new Redis({ host: "localhost", port: Number(6379) });
+
+// Subscriber redis server for implement scaling in Socket
+const subscriber = new Redis({ host: "localhost", port: Number(6379) });
 
 //Http Server
 const httpServer = http.createServer(app);
@@ -16,6 +25,16 @@ const httpServer = http.createServer(app);
 //Socket Server
 const io = new Server();
 io.attach(httpServer);
+
+redis.setnx("state", JSON.stringify(new Array(100).fill(false)));
+
+subscriber.subscribe("server:broker");
+subscriber.on("message", (channel, message) => {
+  const { event, data } = JSON.parse(message);
+  // state[data.index] = data.value;
+  // Relay the message to all connected server
+  io.emit("checkbox-update", data);
+});
 
 //Sockets handler
 // .on handler
@@ -31,45 +50,33 @@ io.on("connection", (socket) => {
     io.emit("server-msg", msg);
   });
 
-  socket.on("checkbox-update", (data) => {
-    // Fill the state
-    state[data.index] = data.value;
-    io.emit("checkbox-update", data);
+  socket.on("checkbox-update", async (data) => {
+    const state = await redis.get("state");
+
+    if (state) {
+      const parsedState = JSON.parse(state);
+      parsedState[data.index] = data.value;
+      await redis.set("state", JSON.stringify(parsedState));
+    }
+
+    await publisher.publish(
+      "server:broker",
+      JSON.stringify({ event: "checkbox-update", data })
+    );
   });
 });
 
 const PORT = process.env.PORT ?? 8080;
 
-// Set up the redis
-const redis = new Redis({ host: "localhost", port: Number(6379) });
-
 app.use(express.static("./public"));
 
-// Set a middleware which act as a rate limiter with help of redis(valkey)
-app.use(async function (req, res, next) {
-  const key = "rate-limit";
-  // const key = `rate-limit:${_id}`; // Rate limit for each user
-  const value = await redis.get(key);
-
-  // If no value found set it to 0
-  if (value === null) {
-    await redis.set(key, 0);
-    // Set the key to expire in 1 minute
-    await redis.expire(key, 60); // Clear the value after 1 minute
+app.get("/state", async (req, res) => {
+  const state = await redis.get("state");
+  if (state) {
+    const parsedState = JSON.parse(state);
+    return res.json({ state: parsedState });
   }
-
-  // If the value is greater than 10 return 429
-  if (Number(value) > 10) {
-    return res.status(429).json({ message: "Too many requests" });
-  }
-
-  redis.incr(key); // Increment by 1
-  next();
-});
-
-//
-app.get("/state", (req, res) => {
-  return res.json({ state });
+  return res.json({ state: [] });
 });
 
 app.get("/", (req, res) => {
